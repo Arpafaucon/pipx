@@ -9,6 +9,9 @@ You also need to have `pip` installed on your machine for `python3`. Installing 
 
 pipx works on macOS, linux, and Windows.
 
+[![Packaging status](https://repology.org/badge/vertical-allrepos/pipx.svg?columns=3&exclude_unsupported=1)](https://repology.org/metapackage/pipx/versions)
+
+
 ## Installing pipx
 
 ### On macOS:
@@ -16,6 +19,7 @@ pipx works on macOS, linux, and Windows.
 ```
 brew install pipx
 pipx ensurepath
+sudo pipx ensurepath --global # optional to allow pipx actions in global scope. See "Global installation" section below.
 ```
 
 ### On Linux:
@@ -26,6 +30,7 @@ pipx ensurepath
 sudo apt update
 sudo apt install pipx
 pipx ensurepath
+sudo pipx ensurepath --global # optional to allow pipx actions in global scope. See "Global installation" section below.
 ```
 
 - Fedora:
@@ -33,6 +38,7 @@ pipx ensurepath
 ```
 sudo dnf install pipx
 pipx ensurepath
+sudo pipx ensurepath --global # optional to allow pipx actions in global scope. See "Global installation" section below.
 ```
 
 - Using `pip` on other distributions:
@@ -40,6 +46,7 @@ pipx ensurepath
 ```
 python3 -m pip install --user pipx
 python3 -m pipx ensurepath
+sudo pipx ensurepath --global # optional to allow pipx actions in global scope. See "Global installation" section below.
 ```
 
 
@@ -145,6 +152,17 @@ sudo PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin PIPX_MAN_DIR=/usr/local/sha
 >
 > `user_data_dir()`, `user_cache_dir()` and `user_log_dir()` resolve to appropriate platform-specific user data, cache and log directories.
 > See the [platformdirs documentation](https://platformdirs.readthedocs.io/en/latest/api.html#platforms) for details.
+
+### Global installation
+
+Pipx also comes with a `--global` argument which helps to execute actions in global scope which exposes the app to
+all system users. By default the global binary location is set to `/usr/local/bin` and can be overridden with the
+environment variable `PIPX_GLOBAL_BIN_DIR`. Default global manual page location is `/usr/local/share/man`. This
+can be overridden with environment variable `PIPX_GLOBAL_MAN_DIR`. Finally, default global virtual environment location
+is `/opt/pipx`, can be overridden with environment variable `PIPX_GLOBAL_HOME`. Make sure to run `sudo pipx ensurepath --global`
+if you intend to use this feature.
+
+Note that the `--global` argument is not supported on Windows.
 
 ## Upgrade pipx
 

@@ -21,9 +21,9 @@ from typing import (
     Union,
 )
 
-import pipx.constants
+from pipx import paths
 from pipx.animate import show_cursor
-from pipx.constants import MINGW, PIPX_TRASH_DIR, WINDOWS
+from pipx.constants import MINGW, WINDOWS
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +42,10 @@ class RelevantSearch(NamedTuple):
 
 
 def _get_trash_file(path: Path) -> Path:
-    if not PIPX_TRASH_DIR.is_dir():
-        PIPX_TRASH_DIR.mkdir()
+    if not paths.ctx.trash.is_dir():
+        paths.ctx.trash.mkdir()
     prefix = "".join(random.choices(string.ascii_lowercase, k=8))
-    return PIPX_TRASH_DIR / f"{prefix}.{path.name}"
+    return paths.ctx.trash / f"{prefix}.{path.name}"
 
 
 def rmdir(path: Path, safe_rm: bool = True) -> None:
@@ -109,6 +109,10 @@ def run_pypackage_bin(bin_path: Path, args: List[str]) -> NoReturn:
 if WINDOWS:
 
     def get_venv_paths(root: Path) -> Tuple[Path, Path, Path]:
+        # Make sure to use the real root path. This matters especially on Windows when using the packaged app
+        # (Microsoft Store) version of Python, which uses path redirection for sandboxing.
+        # See https://github.com/pypa/pipx/issues/1164
+        root = root.resolve()
         bin_path = root / "Scripts" if not MINGW else root / "bin"
         python_path = bin_path / "python.exe"
         man_path = root / "share" / "man"
@@ -172,14 +176,6 @@ def run_subprocess(
         os.makedirs(run_dir, exist_ok=True)
     # windows cannot take Path objects, only strings
     cmd_str_list = [str(c) for c in cmd]
-    # Make sure to call the binary using its real path. This matters especially on Windows when using the packaged app
-    # (Microsoft Store) version of Python, which uses path redirection for sandboxing. If the path to the executable is
-    # redirected, the executable can get confused as to which directory it's being run from, leading to problems.
-    # See https://github.com/pypa/pipx/issues/1164
-    # Conversely, if the binary is a symlink, then we should NOT use the real path, as Python expects to receive the
-    # symlink in argv[0] so that it can locate the venv.
-    if not os.path.islink(cmd_str_list[0]) and WINDOWS:
-        cmd_str_list[0] = os.path.realpath(cmd_str_list[0])
 
     # TODO: Switch to using `-P` / PYTHONSAFEPATH instead of running in
     # separate directory in Python 3.11
@@ -215,7 +211,7 @@ def subprocess_post_check(completed_process: "subprocess.CompletedProcess[str]",
             logger.info(f"{' '.join(completed_process.args)!r} failed")
 
 
-def dedup_ordered(input_list: List[Any]) -> List[Any]:
+def dedup_ordered(input_list: List[Tuple[str, Any]]) -> List[Tuple[str, Any]]:
     output_list = []
     seen = set()
     for x in input_list:
@@ -334,9 +330,9 @@ def subprocess_post_check_handle_pip_error(
     if completed_process.returncode:
         logger.info(f"{' '.join(completed_process.args)!r} failed")
         # Save STDOUT and STDERR to file in pipx/logs/
-        if pipx.constants.pipx_log_file is None:
+        if paths.ctx.log_file is None:
             raise PipxError("Pipx internal error: No log_file present.")
-        pip_error_file = pipx.constants.pipx_log_file.parent / (pipx.constants.pipx_log_file.stem + "_pip_errors.log")
+        pip_error_file = paths.ctx.log_file.parent / (paths.ctx.log_file.stem + "_pip_errors.log")
         with pip_error_file.open("w", encoding="utf-8") as pip_error_fh:
             print("PIP STDOUT", file=pip_error_fh)
             print("----------", file=pip_error_fh)
@@ -425,3 +421,12 @@ def pipx_wrap(text: str, subsequent_indent: str = "", keep_newlines: bool = Fals
             subsequent_indent=subsequent_indent,
             break_on_hyphens=False,
         )
+
+
+def is_paths_relative(path: Path, parent: Path):
+    # Can be replaced with path.is_relative_to() if support for python3.8 is dropped
+    try:
+        path.resolve().relative_to(parent.resolve())
+        return True
+    except ValueError:
+        return False
